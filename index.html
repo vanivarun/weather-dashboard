@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weather Dashboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: #f8fafc;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+    }
+    .container {
+      max-width: 900px;
+      width: 100%;
+      padding: 20px;
+    }
+    .search {
+      display: flex;
+      margin-bottom: 20px;
+      gap: 10px;
+    }
+    .search input {
+      flex: 1;
+      padding: 10px;
+      font-size: 16px;
+      border: none;
+      border-radius: 5px 0 0 5px;
+    }
+    .search button {
+      padding: 10px 20px;
+      font-size: 16px;
+      border: none;
+      background: #2563eb;
+      color: #fff;
+      border-radius: 0 5px 5px 0;
+      cursor: pointer;
+    }
+    .current-weather {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .current-weather img {
+      width: 100px;
+      height: 100px;
+      object-fit: contain;
+    }
+    .highlights {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    .card {
+      background: #1e293b;
+      padding: 15px;
+      border-radius: 10px;
+      text-align: center;
+    }
+    .forecast {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+    }
+    .forecast-day {
+      background: #1e293b;
+      padding: 10px;
+      border-radius: 10px;
+      text-align: center;
+    }
+    .forecast-day img {
+      width: 50px;
+      height: 50px;
+      object-fit: contain;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="search">
+      <input type="text" id="cityInput" placeholder="Enter city name...">
+      <button onclick="getWeather()">Search</button>
+      <button onclick="getWeatherByLocation()">Use My Location</button>
+    </div>
+
+    <div class="current-weather" id="currentWeather"></div>
+
+    <div class="highlights" id="highlights"></div>
+
+    <h3>5-Day Forecast</h3>
+    <div class="forecast" id="forecast"></div>
+  </div>
+
+  <script>
+    const apiKey = "01add0307c9a1f02d75d711d0211f57d"; // ✅ Your API key
+
+    async function getWeather() {
+      const city = document.getElementById("cityInput").value;
+      if (!city) return;
+
+      await fetchWeatherByCity(city);
+    }
+
+    async function getWeatherByLocation() {
+      if (!navigator.geolocation) {
+        alert("Geolocation is not supported by your browser.");
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(async (position) => {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+
+        await fetchWeatherByCoords(lat, lon);
+
+      }, () => {
+        alert("Unable to retrieve your location.");
+      });
+    }
+
+    async function fetchWeatherByCity(city) {
+      try {
+        // Current weather API
+        const currentUrl = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`;
+        const currentRes = await fetch(currentUrl);
+        const currentData = await currentRes.json();
+
+        if (currentData.cod !== 200) {
+          alert("City not found!");
+          return;
+        }
+
+        displayCurrentWeather(currentData);
+
+        // Forecast API
+        const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?q=${city}&appid=${apiKey}&units=metric`;
+        const forecastRes = await fetch(forecastUrl);
+        const forecastData = await forecastRes.json();
+
+        displayForecast(forecastData);
+      } catch (error) {
+        alert("Error fetching weather data.");
+        console.error(error);
+      }
+    }
+
+    async function fetchWeatherByCoords(lat, lon) {
+      try {
+        // Current weather API
+        const currentUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`;
+        const currentRes = await fetch(currentUrl);
+        const currentData = await currentRes.json();
+
+        displayCurrentWeather(currentData);
+
+        // Forecast API
+        const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`;
+        const forecastRes = await fetch(forecastUrl);
+        const forecastData = await forecastRes.json();
+
+        displayForecast(forecastData);
+      } catch (error) {
+        alert("Error fetching weather data.");
+        console.error(error);
+      }
+    }
+
+    function displayCurrentWeather(data) {
+      document.getElementById("currentWeather").innerHTML = `
+        <h2>${data.name}, ${data.sys.country}</h2>
+        <img src="${getIcon(data.weather[0].main)}" alt="icon">
+        <h1>${Math.round(data.main.temp)}°C</h1>
+        <p>${data.weather[0].description}</p>
+      `;
+
+      document.getElementById("highlights").innerHTML = `
+        <div class="card"><h3>Wind</h3><p>${data.wind.speed} m/s</p></div>
+        <div class="card"><h3>Humidity</h3><p>${data.main.humidity}%</p></div>
+        <div class="card"><h3>Pressure</h3><p>${data.main.pressure} hPa</p></div>
+        <div class="card"><h3>Visibility</h3><p>${data.visibility / 1000} km</p></div>
+      `;
+    }
+
+    function displayForecast(data) {
+      const forecastEl = document.getElementById("forecast");
+      forecastEl.innerHTML = "";
+
+      for (let i = 0; i < data.list.length; i += 8) {
+        const day = data.list[i];
+        const date = new Date(day.dt * 1000);
+        forecastEl.innerHTML += `
+          <div class="forecast-day">
+            <h4>${date.toDateString().slice(0, 10)}</h4>
+            <img src="${getIcon(day.weather[0].main)}" alt="icon">
+            <p>${Math.round(day.main.temp_min)}° / ${Math.round(day.main.temp_max)}°C</p>
+          </div>
+        `;
+      }
+    }
+
+    function getIcon(condition) {
+      const basePath = "weather/";
+      switch (condition.toLowerCase()) {
+        case "clouds": return basePath + "cloud.jpeg";
+        case "rain": return basePath + "rain.jpeg";
+        case "clear": return basePath + "sun.jpeg";
+        case "snow": return basePath + "snow.jpeg";
+        default: return basePath + "sun.jpeg";
+      }
+    }
+  </script>
+</body>
+</html>
